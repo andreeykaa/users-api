@@ -1,0 +1,46 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: users_api_php
+    working_dir: /var/www/html
+    volumes:
+      - ./app:/var/www/html
+      - users_api_var:/var/www/html/var
+    depends_on:
+      - db
+    environment:
+      TZ: Europe/Kyiv
+      DATABASE_URL: "mysql://symfony:symfony@db:3306/users_api?serverVersion=8.4&charset=utf8mb4"
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: users_api_nginx
+    ports:
+      - "8081:80"
+    volumes:
+      - ./app:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - users_api_var:/var/www/html/var
+    depends_on:
+      - php
+
+  db:
+    image: mysql:8.4
+    container_name: users_api_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: users_api
+      MYSQL_USER: symfony
+      MYSQL_PASSWORD: symfony
+      MYSQL_ROOT_PASSWORD: root
+      TZ: Europe/Kyiv
+    ports:
+      - "3308:3306"
+    volumes:
+      - users_api_db_data:/var/lib/mysql
+
+volumes:
+  users_api_db_data:
+  users_api_var:

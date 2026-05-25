@@ -1,0 +1,35 @@
+# config/packages/security.yaml
+security:
+    password_hashers:
+        App\Entity\User:
+            algorithm: plaintext
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: login
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        login:
+            pattern: ^/v1/api/auth/login
+            stateless: true
+            json_login:
+                check_path: /v1/api/auth/login
+                username_path: login
+                password_path: pass
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        api:
+            pattern: ^/v1/api
+            stateless: true
+            jwt: ~
+
+    access_control:
+        - { path: ^/v1/api/auth/login, roles: PUBLIC_ACCESS }
+        - { path: ^/v1/api, roles: IS_AUTHENTICATED_FULLY }
