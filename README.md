@@ -273,6 +273,7 @@ users-api/
 ├── docker/
 ├── docker-compose.yml
 ├── Dockerfile
+├── dump.sql
 └── README.md
 ```
 
