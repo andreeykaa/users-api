@@ -26,7 +26,7 @@ REST API for user management built with PHP 8.4, Symfony 7.2, MySQL 8.4, and JWT
 | Role | Permissions |
 |---|---|
 | `root` | Full access |
-| `user` | Read/update only own profile |
+| `user` | Read and update only own profile |
 
 ---
 
@@ -94,7 +94,7 @@ You can create it manually:
 docker compose exec db mysql -u symfony -psymfony users_api -e "INSERT INTO users (login, phone, pass, role) VALUES ('admin', '12345678', 'secret12', 'root');"
 ```
 
-Or use the prepared dump.sql file to import the demo database data:
+Or use the prepared `dump.sql` file:
 
 ```bash
 docker compose exec -T db mysql -u symfony -psymfony users_api < dump.sql
@@ -111,7 +111,8 @@ regular user:
 login: simple
 pass: pass1111
 ```
-**Use only one option: either create the root user manually or import the dump.**
+
+Use only one option: either create the root user manually or import the dump.
 
 API:
 
@@ -129,7 +130,7 @@ Public route:
 POST /v1/api/auth/login
 ```
 
-Example:
+### Request
 
 ```bash
 curl -X POST http://localhost:8081/v1/api/auth/login \
@@ -137,7 +138,7 @@ curl -X POST http://localhost:8081/v1/api/auth/login \
   -d '{"login":"admin","pass":"secret12"}'
 ```
 
-Response:
+### Success Response `200`
 
 ```json
 {
@@ -145,10 +146,103 @@ Response:
 }
 ```
 
+Save token to a shell variable:
+
+```bash
+export TOKEN="jwt_token"
+```
+
+Or directly from the login request:
+
+```bash
+export TOKEN=$(curl -s -X POST http://localhost:8081/v1/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login":"admin","pass":"secret12"}' | jq -r .token)
+```
+
 Use token:
 
 ```text
 Authorization: Bearer jwt_token
+```
+
+---
+
+## Manual Testing
+
+### Create user
+
+```bash
+curl -X POST http://localhost:8081/v1/api/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"login":"john","phone":"99988877","pass":"pass1234"}'
+```
+
+### Success Response `201`
+
+```json
+{
+  "id": 2,
+  "login": "john",
+  "phone": "99988877",
+  "pass": "pass1234"
+}
+```
+
+---
+
+### Get user
+
+```bash
+curl -X GET "http://localhost:8081/v1/api/users?id=2" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Success Response `200`
+
+```json
+{
+  "login": "john",
+  "phone": "99988877",
+  "pass": "pass1234"
+}
+```
+
+---
+
+### Update user
+
+```bash
+curl -X PUT http://localhost:8081/v1/api/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id":2,"login":"john","phone":"11112222","pass":"newpass"}'
+```
+
+### Success Response `200`
+
+```json
+{
+  "id": 2
+}
+```
+
+---
+
+### Delete user
+
+```bash
+curl -X DELETE http://localhost:8081/v1/api/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id":2}'
+```
+
+### Success Response `204`
+
+```text
+Empty response body
 ```
 
 ---
@@ -201,7 +295,7 @@ Rules:
 | 422 | Validation error |
 | 500 | Internal server error |
 
-Example:
+### Access Denied Example
 
 ```json
 {
@@ -209,7 +303,7 @@ Example:
 }
 ```
 
-Validation example:
+### Validation Error Example
 
 ```json
 {
@@ -219,9 +313,32 @@ Validation example:
 }
 ```
 
+### Missing Required Fields Example
+
+```json
+{
+  "error": "Missing required fields",
+  "fields": ["login"]
+}
+```
+
+### Invalid JSON Example
+
+```json
+{
+  "error": "Invalid JSON body"
+}
+```
+
 ---
 
 ## Tests
+
+The tests use a separate database:
+
+```text
+users_api_test
+```
 
 ### Create test database
 
@@ -255,6 +372,19 @@ Expected result:
 OK (25 tests, 173 assertions)
 ```
 
+### Covered Scenarios
+
+- authentication without token
+- successful CRUD operations
+- validation errors
+- duplicate `login + pass`
+- invalid JSON body
+- missing required fields
+- role restrictions
+- access denial for чужих users
+- global JSON exception handling
+- unsupported HTTP methods
+
 ---
 
 ## Project Structure
@@ -286,6 +416,6 @@ This project was created for a test assignment.
 Assignment-specific simplifications:
 
 - passwords are stored as plain text
-- passwords are returned in responses
+- passwords are returned in API responses
 - authentication uses plain text passwords
 - unique constraint uses `login + pass`
